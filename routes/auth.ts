@@ -1,7 +1,7 @@
 import express from 'express';
 import { body } from 'express-validator';
 
-import { signUp } from '../controllers/auth';
+import { signUp, verifyOTP } from '../controllers/auth';
 
 const router = express.Router();
 
@@ -14,5 +14,7 @@ router.post(
     body('confPass').isLength({ min: 5 }).withMessage('invalid password confirmation'),
     signUp
 );
+
+router.post( '/verify/:id/:otp', verifyOTP );
 
 export default router;

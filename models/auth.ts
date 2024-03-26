@@ -4,6 +4,7 @@ interface schemaTypes {
     username: string,
     email: string,
     password: string,
+    verified: Boolean
 }
 
 const Schema = mongoose.Schema;
@@ -16,6 +17,10 @@ const user = new Schema<schemaTypes>({
         required: true,
     },
     password: String,
+    verified: {
+        type: Boolean,
+        default: false
+    }
 });
 
 export const userModal = mongoose.model('User', user);

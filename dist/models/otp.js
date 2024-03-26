@@ -3,20 +3,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.userModal = void 0;
+exports.otpSchema = void 0;
 const mongoose_1 = __importDefault(require("mongoose"));
 const Schema = mongoose_1.default.Schema;
-const user = new Schema({
-    username: String,
-    email: {
-        type: String,
-        lowercase: true,
+const otp = new Schema({
+    userId: {
+        type: Schema.Types.ObjectId,
         required: true,
+        ref: 'User'
     },
-    password: String,
-    verified: {
-        type: Boolean,
-        default: false
+    otpCode: {
+        type: String,
+        required: true
     }
-});
-exports.userModal = mongoose_1.default.model('User', user);
+}, { timestamps: true });
+otp.index({ "createdAt": 1 }, { expireAfterSeconds: 15 });
+exports.otpSchema = mongoose_1.default.model('Otp', otp);
