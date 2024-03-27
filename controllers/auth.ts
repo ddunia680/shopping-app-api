@@ -30,18 +30,19 @@ export const signUp = async (req: Request, res: Response) => {
     }
 
     try {
-        const theCode = [Math.floor(Math.random()), Math.floor(Math.random()), Math.floor(Math.random()), Math.floor(Math.random()),
-            Math.floor(Math.random()), Math.floor(Math.random())].join('');
+        const theCode = [Math.floor(Math.random()* 10), Math.floor(Math.random()*10), Math.floor(Math.random() * 10), 
+            Math.floor(Math.random() * 10), Math.floor(Math.random() * 10), Math.floor(Math.random() * 10)].join('');
+
+            // Email not going, start here...
         const msg = {
             to: email,
-            from: 'ddunia680@gmail.com',
+            from: 'duniadunia372@gmail.com',
             subject: 'OTP verification Code',
             html: `<p>Hello there<br/> Your verification code for your account is <strong>${theCode}</strong></p>`,
             text: 'Have fun!'
         }
         const feedback = await sqMail.send(msg);
         console.log(feedback);
-        const hashedOTPCode = await bcrypt.hash(theCode, 12);
         const hashesPass = await bcrypt.hash(password, 12);
         const user = new userModal({
             username: username,
@@ -52,7 +53,7 @@ export const signUp = async (req: Request, res: Response) => {
         const response = await user.save();
         const theOtp = new otpSchema({
             userId: response._id,
-            otpCode: hashedOTPCode
+            otpCode: theCode
         })
         const output = await theOtp.save();
         res.status(200).json({
@@ -60,6 +61,8 @@ export const signUp = async (req: Request, res: Response) => {
             message: `successfully created user ${response.username}`
         })
     } catch(err) {
+        console.log(err);
+        
         res.status(500).json({
             message: 'something went wrong server-side'
         })
@@ -67,34 +70,73 @@ export const signUp = async (req: Request, res: Response) => {
 };
 
 export const verifyOTP = async (req: Request, res: Response) => {    
-    const id = req.params.id;
+    const email = req.params.email;
     const otp = req.params.otp;
 
     try {
-        const theOTPData = await otpSchema.findOne({ userId: id });
-            if(!theOTPData) {
+        const theUser = await userModal.findOne({ email: email });
+        if(theUser) {
+            const theOTPData = await otpSchema.findOne({ userId: theUser._id });
+                if(!theOTPData) {
+                    return res.status(500).json({
+                        message: 'otp already expired, request for a new one'
+                    })
+                }
+            
+            if(theOTPData.otpCode.toString() !== otp.toString()) {
                 return res.status(500).json({
-                    message: 'otp already expired, request for a new one'
+                    message: 'wrong OTP entered!'
                 })
             }
-        
-        const theOutput = await bcrypt.compare( theOTPData.otpCode, otp);
-        if(!theOutput) {
-            return res.status(500).json({
-                message: 'wrong OTP entered!'
+            theUser.verified = true;
+            const output = await theUser.save();
+                    
+            res.status(200).json({
+                message: 'correct otp'
             })
         }
-        
-        res.status(200).json({
-            message: 'correct otp'
-        })
     } catch(err) {
         res.status(500).json({
             message: 'something went wrong server-side'
         })
     }
-    
-    
+}
 
+export const requestOTp = async (req: Request, res: Response) => {
+    const email = req.params.email;
 
+    try {
+        const theUser = await userModal.findOne({ email: email });
+        if(theUser) {
+            const theCode = [Math.floor(Math.random() * 10), Math.floor(Math.random() * 10), Math.floor(Math.random() * 10), 
+                Math.floor(Math.random() * 10), Math.floor(Math.random() * 10), Math.floor(Math.random() * 10)].join('');
+
+            const msg = {
+                to: theUser.email,
+                from: 'duniadunia372@gmail.com',
+                subject: 'OTP verification Code',
+                html: `<p>Hello there<br/> Your verification code for your account is <strong>${theCode}</strong></p>`,
+                text: 'Have fun!'
+            }
+            const feedback = await sqMail.send(msg);
+            console.log(feedback);
+
+            const theOtp = new otpSchema({
+                userId: theUser._id,
+                otpCode: theCode
+            })
+            const output = await theOtp.save();
+            res.status(200).json({
+                message: 'successfully sent new otp'
+            })
+        } else {
+            return res.status(500).json({
+                message: 'email not found'
+            })
+        }
+    } catch(err) {
+        res.status(500).json({
+            message: 'something went wrong server-side'
+        })
+    }
 }

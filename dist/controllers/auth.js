@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.verifyOTP = exports.signUp = void 0;
+exports.requestOTp = exports.verifyOTP = exports.signUp = void 0;
 const express_validator_1 = require("express-validator");
 const auth_1 = require("../models/auth");
 const otp_1 = require("../models/otp");
@@ -39,18 +39,18 @@ const signUp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         });
     }
     try {
-        const theCode = [Math.floor(Math.random()), Math.floor(Math.random()), Math.floor(Math.random()), Math.floor(Math.random()),
-            Math.floor(Math.random()), Math.floor(Math.random())].join('');
+        const theCode = [Math.floor(Math.random() * 10), Math.floor(Math.random() * 10), Math.floor(Math.random() * 10),
+            Math.floor(Math.random() * 10), Math.floor(Math.random() * 10), Math.floor(Math.random() * 10)].join('');
+        // Email not going, start here...
         const msg = {
             to: email,
-            from: 'ddunia680@gmail.com',
+            from: 'duniadunia372@gmail.com',
             subject: 'OTP verification Code',
             html: `<p>Hello there<br/> Your verification code for your account is <strong>${theCode}</strong></p>`,
             text: 'Have fun!'
         };
         const feedback = yield mail_1.default.send(msg);
         console.log(feedback);
-        const hashedOTPCode = yield bcrypt_1.default.hash(theCode, 12);
         const hashesPass = yield bcrypt_1.default.hash(password, 12);
         const user = new auth_1.userModal({
             username: username,
@@ -60,7 +60,7 @@ const signUp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         const response = yield user.save();
         const theOtp = new otp_1.otpSchema({
             userId: response._id,
-            otpCode: hashedOTPCode
+            otpCode: theCode
         });
         const output = yield theOtp.save();
         res.status(200).json({
@@ -69,6 +69,7 @@ const signUp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         });
     }
     catch (err) {
+        console.log(err);
         res.status(500).json({
             message: 'something went wrong server-side'
         });
@@ -77,24 +78,28 @@ const signUp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 });
 exports.signUp = signUp;
 const verifyOTP = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const id = req.params.id;
+    const email = req.params.email;
     const otp = req.params.otp;
     try {
-        const theOTPData = yield otp_1.otpSchema.findOne({ userId: id });
-        if (!theOTPData) {
-            return res.status(500).json({
-                message: 'otp already expired, request for a new one'
+        const theUser = yield auth_1.userModal.findOne({ email: email });
+        if (theUser) {
+            const theOTPData = yield otp_1.otpSchema.findOne({ userId: theUser._id });
+            if (!theOTPData) {
+                return res.status(500).json({
+                    message: 'otp already expired, request for a new one'
+                });
+            }
+            if (theOTPData.otpCode.toString() !== otp.toString()) {
+                return res.status(500).json({
+                    message: 'wrong OTP entered!'
+                });
+            }
+            theUser.verified = true;
+            const output = yield theUser.save();
+            res.status(200).json({
+                message: 'correct otp'
             });
         }
-        const theOutput = yield bcrypt_1.default.compare(theOTPData.otpCode, otp);
-        if (!theOutput) {
-            return res.status(500).json({
-                message: 'wrong OTP entered!'
-            });
-        }
-        res.status(200).json({
-            message: 'correct otp'
-        });
     }
     catch (err) {
         res.status(500).json({
@@ -103,3 +108,41 @@ const verifyOTP = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 exports.verifyOTP = verifyOTP;
+const requestOTp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const email = req.params.email;
+    try {
+        const theUser = yield auth_1.userModal.findOne({ email: email });
+        if (theUser) {
+            const theCode = [Math.floor(Math.random() * 10), Math.floor(Math.random() * 10), Math.floor(Math.random() * 10),
+                Math.floor(Math.random() * 10), Math.floor(Math.random() * 10), Math.floor(Math.random() * 10)].join('');
+            const msg = {
+                to: theUser.email,
+                from: 'duniadunia372@gmail.com',
+                subject: 'OTP verification Code',
+                html: `<p>Hello there<br/> Your verification code for your account is <strong>${theCode}</strong></p>`,
+                text: 'Have fun!'
+            };
+            const feedback = yield mail_1.default.send(msg);
+            console.log(feedback);
+            const theOtp = new otp_1.otpSchema({
+                userId: theUser._id,
+                otpCode: theCode
+            });
+            const output = yield theOtp.save();
+            res.status(200).json({
+                message: 'successfully sent new otp'
+            });
+        }
+        else {
+            return res.status(500).json({
+                message: 'email not found'
+            });
+        }
+    }
+    catch (err) {
+        res.status(500).json({
+            message: 'something went wrong server-side'
+        });
+    }
+});
+exports.requestOTp = requestOTp;

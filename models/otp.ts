@@ -15,6 +15,6 @@ const otp = new Schema({
     }
 }, { timestamps: true });
 
-otp.index( { "createdAt": 1 }, { expireAfterSeconds: 15 } );
+otp.index( { "createdAt": 1 }, { expireAfterSeconds: 30 } );
 
 export const otpSchema = mongoose.model('Otp', otp);
