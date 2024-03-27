@@ -30,4 +30,10 @@ router.post('/signup', (0, express_validator_1.body)('username').trim().isLength
 })), (0, express_validator_1.body)('password').isLength({ min: 5 }).withMessage('invalid password'), (0, express_validator_1.body)('confPass').isLength({ min: 5 }).withMessage('invalid password confirmation'), auth_2.signUp);
 router.post('/verify/:email/:otp', auth_2.verifyOTP);
 router.post('/requestOTp/:email', auth_2.requestOTp);
+router.post('/login', (0, express_validator_1.body)('username').trim().isLength({ min: 3 }).withMessage('invalid username').custom((value_3, _c) => __awaiter(void 0, [value_3, _c], void 0, function* (value, { req }) {
+    const userDoc = yield auth_1.userModal.findOne({ username: value });
+    if (!userDoc) {
+        return Promise.reject('username not found!');
+    }
+})), (0, express_validator_1.body)('password').isLength({ min: 5 }).withMessage('invalid password'), auth_2.login);
 exports.default = router;

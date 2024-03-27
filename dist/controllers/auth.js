@@ -12,11 +12,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.requestOTp = exports.verifyOTP = exports.signUp = void 0;
+exports.login = exports.requestOTp = exports.verifyOTP = exports.signUp = void 0;
 const express_validator_1 = require("express-validator");
 const auth_1 = require("../models/auth");
 const otp_1 = require("../models/otp");
 const bcrypt_1 = __importDefault(require("bcrypt"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const mail_1 = __importDefault(require("@sendgrid/mail"));
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
@@ -44,7 +45,7 @@ const signUp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         // Email not going, start here...
         const msg = {
             to: email,
-            from: 'duniadunia372@gmail.com',
+            from: process.env.SENDER_EMAIL_ADD,
             subject: 'OTP verification Code',
             html: `<p>Hello there<br/> Your verification code for your account is <strong>${theCode}</strong></p>`,
             text: 'Have fun!'
@@ -117,7 +118,7 @@ const requestOTp = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                 Math.floor(Math.random() * 10), Math.floor(Math.random() * 10), Math.floor(Math.random() * 10)].join('');
             const msg = {
                 to: theUser.email,
-                from: 'duniadunia372@gmail.com',
+                from: process.env.SENDER_EMAIL_ADD,
                 subject: 'OTP verification Code',
                 html: `<p>Hello there<br/> Your verification code for your account is <strong>${theCode}</strong></p>`,
                 text: 'Have fun!'
@@ -146,3 +147,41 @@ const requestOTp = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     }
 });
 exports.requestOTp = requestOTp;
+const login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const errors = (0, express_validator_1.validationResult)(req);
+    console.log(errors);
+    if (!errors.isEmpty()) {
+        return res.status(422).json({
+            message: errors.array()[0].msg
+        });
+    }
+    const username = req.body.username;
+    const password = req.body.password;
+    try {
+        const theUser = yield auth_1.userModal.findOne({ username: username });
+        if (!(theUser === null || theUser === void 0 ? void 0 : theUser.verified)) {
+            return res.status(402).json({
+                message: 'account not yet verified!'
+            });
+        }
+        const passwordMatch = yield bcrypt_1.default.compare(password, theUser.password);
+        if (!passwordMatch) {
+            return res.status(402).json({
+                message: 'password is incorrect'
+            });
+        }
+        const token = jsonwebtoken_1.default.sign({ _id: theUser._id, username: theUser.username, email: theUser.email }, 'someveryverytrickhashhash', { expiresIn: '24h' });
+        res.status(200).json({
+            token: token,
+            _id: theUser._id,
+            username: theUser.username,
+            email: theUser.email
+        });
+    }
+    catch (err) {
+        res.status(500).json({
+            message: 'something went wrong server-side'
+        });
+    }
+});
+exports.login = login;

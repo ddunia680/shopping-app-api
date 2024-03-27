@@ -3,6 +3,7 @@ import { validationResult } from "express-validator";
 import { userModal }  from '../models/auth';
 import { otpSchema } from "../models/otp";
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import sqMail from '@sendgrid/mail';
 import dotenv from 'dotenv'
 dotenv.config();
@@ -36,7 +37,7 @@ export const signUp = async (req: Request, res: Response) => {
             // Email not going, start here...
         const msg = {
             to: email,
-            from: 'duniadunia372@gmail.com',
+            from: process.env.SENDER_EMAIL_ADD as string,
             subject: 'OTP verification Code',
             html: `<p>Hello there<br/> Your verification code for your account is <strong>${theCode}</strong></p>`,
             text: 'Have fun!'
@@ -113,7 +114,7 @@ export const requestOTp = async (req: Request, res: Response) => {
 
             const msg = {
                 to: theUser.email,
-                from: 'duniadunia372@gmail.com',
+                from: process.env.SENDER_EMAIL_ADD as string,
                 subject: 'OTP verification Code',
                 html: `<p>Hello there<br/> Your verification code for your account is <strong>${theCode}</strong></p>`,
                 text: 'Have fun!'
@@ -134,6 +135,51 @@ export const requestOTp = async (req: Request, res: Response) => {
                 message: 'email not found'
             })
         }
+    } catch(err) {
+        res.status(500).json({
+            message: 'something went wrong server-side'
+        })
+    }
+}
+
+export const login = async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    console.log(errors);
+    if(!errors.isEmpty()) {
+        return res.status(422).json({
+            message: errors.array()[0].msg
+        })
+    }
+
+    const username = req.body.username;
+    const password = req.body.password;
+
+    try {
+        const theUser = await userModal.findOne({ username: username });
+        if(!theUser?.verified) {
+            return res.status(402).json({
+                message: 'account not yet verified!'
+            })
+        }
+
+        const passwordMatch = await bcrypt.compare(password, theUser.password);
+        if(!passwordMatch) {
+            return res.status(402).json({
+                message: 'password is incorrect'
+            })
+        }
+
+        const token = jwt.sign(
+            { _id: theUser._id, username: theUser.username, email: theUser.email },
+            'someveryverytrickhashhash',
+            { expiresIn: '24h' }
+        )
+        res.status(200).json({
+            token: token,
+            _id: theUser._id,
+            username: theUser.username,
+            email: theUser.email
+        })
     } catch(err) {
         res.status(500).json({
             message: 'something went wrong server-side'
